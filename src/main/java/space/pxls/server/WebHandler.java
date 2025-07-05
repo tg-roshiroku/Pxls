@@ -1829,7 +1829,7 @@ public class WebHandler {
         // let's also update the cookie, if present. This place will get called frequent enough
         Cookie tokenCookie = exchange.getRequestCookie("pxls-token");
         if (tokenCookie != null) {
-            setAuthCookie(exchange, tokenCookie.getValue(), 24);
+                       setAuthCookie(exchange, tokenCookie.getValue(), 24);
         }
 
         exchange.getResponseSender().send(App.getBoardData());
@@ -2119,5 +2119,97 @@ public class WebHandler {
         for (Map.Entry<String, AuthService> entry : services.entrySet()) {
             entry.getValue().reloadEnabledState();
         }
+    }
+
+    /**
+     * External authentication bridge endpoint
+     * Accepts external user data and creates a Pxls session
+     */
+    public void externalAuth(HttpServerExchange exchange) throws Exception {
+        JsonElement _data = exchange.getAttachment(JsonReader.ATTACHMENT_KEY);
+        if (_data == null || _data.isJsonNull() || !_data.isJsonObject()) {
+            sendBadRequest(exchange, "Invalid data");
+            return;
+        }
+        
+        JsonObject dataObj = _data.getAsJsonObject();
+        
+        // Extract required fields
+        String twitchId = null;
+        String twitchLogin = null;
+        
+        try {
+            twitchId = dataObj.get("twitchId").getAsString();
+            twitchLogin = dataObj.get("twitchLogin").getAsString();
+            // displayName and profileImageUrl are extracted but not used in this implementation
+            dataObj.get("displayName").getAsString(); // validate it exists
+            dataObj.get("profileImageUrl").getAsString(); // validate it exists
+        } catch (Exception e) {
+            sendBadRequest(exchange, "Missing required fields: twitchId, twitchLogin, displayName, profileImageUrl");
+            return;
+        }
+        
+        String ip = exchange.getAttachment(IPReader.IP);
+        
+        // Check if user already exists by Twitch ID
+        User user = App.getUserManager().getByLogin("twitch", twitchId);
+        
+        if (user == null) {
+            // Create new user
+            String username = twitchLogin.toLowerCase().replaceAll("[^a-z0-9_]", "");
+            if (username.length() < 1) {
+                username = "user_" + twitchId;
+            }
+            
+            // Ensure username is unique
+            int suffix = 1;
+            String originalUsername = username;
+            while (App.getDatabase().getUserByName(username).isPresent()) {
+                username = originalUsername + suffix;
+                suffix++;
+            }
+            
+            try {
+                // Create user in database
+                UserLogin login = new UserLogin("twitch", twitchId);
+                DBUser dbUser = App.getDatabase().createUser(username, login, ip);
+                if (dbUser == null) {
+                    send(StatusCodes.INTERNAL_SERVER_ERROR, exchange, "Failed to create user");
+                    return;
+                }
+                user = App.getUserManager().getByID(dbUser.id);
+            } catch (Exception e) {
+                // If user creation fails due to duplicate username, try to find existing user
+                System.err.println("User creation failed, attempting to find existing user: " + e.getMessage());
+                
+                // Try to find user by username first
+                Optional<DBUser> existingUser = App.getDatabase().getUserByName(originalUsername);
+                if (existingUser.isPresent()) {
+                    user = App.getUserManager().getByID(existingUser.get().id);
+                    System.out.println("Found existing user by username: " + user.getName());
+                } else {
+                    // If still not found, this is a real error
+                    send(StatusCodes.INTERNAL_SERVER_ERROR, exchange, "Failed to create or find user: " + e.getMessage());
+                    return;
+                }
+            }
+        }
+        
+        // Create session token
+        String loginToken = App.getUserManager().logIn(user, ip);
+        
+        // Set auth cookie
+        setAuthCookie(exchange, loginToken, 24);
+        
+        // Return success response
+        JsonObject response = new JsonObject();
+        response.addProperty("success", true);
+        response.addProperty("token", loginToken);
+        response.addProperty("userId", user.getId());
+        response.addProperty("username", user.getName());
+        
+        exchange.setStatusCode(StatusCodes.OK);
+        exchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "application/json");
+        exchange.getResponseSender().send(App.getGson().toJson(response));
     }
 }

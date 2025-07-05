@@ -1,0 +1,42 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_DB: pxls
+      POSTGRES_USER: pxls
+      POSTGRES_PASSWORD: pxls_password
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    command: ["postgres", "-c", "max_connections=500", "-c", "shared_buffers=256MB"]
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U pxls"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+
+  pxls-backend:
+    build: .
+    ports:
+      - "4567:4567"
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_NAME=pxls
+      - DB_USER=pxls
+      - DB_PASSWORD=pxls_password
+    volumes:
+      - ./docker-pxls.conf:/app/pxls.conf
+      - ./resources/palette-reference.conf:/app/palette.conf
+      - ./resources/roles-reference.conf:/app/roles.conf
+      - board_data:/app/board
+
+volumes:
+  postgres_data:
+  board_data:

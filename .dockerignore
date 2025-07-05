@@ -1,0 +1,15 @@
+# Docker ignore file
+.git
+.gitignore
+README.md
+Dockerfile
+.dockerignore
+target/
+.mvn/wrapper/maven-wrapper.jar
+.idea/
+*.iml
+.vscode/
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
