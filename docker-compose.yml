@@ -24,8 +24,6 @@ services:
             interval: 30s
             timeout: 10s
             retries: 5
-        networks:
-            - pxls-network
 
     pxls-backend:
         build: .
@@ -45,13 +43,7 @@ services:
             - ./resources/palette-reference.conf:/app/palette.conf
             - ./resources/roles-reference.conf:/app/roles.conf
             - board_data:/app/board
-        networks:
-            - pxls-network
 
 volumes:
     postgres_data:
     board_data:
-
-networks:
-    pxls-network:
-        external: true
