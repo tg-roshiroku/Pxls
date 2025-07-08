@@ -39,7 +39,7 @@ COPY extras ./extras
 
 # Create board data directory
 RUN mkdir -p /app/board
-RUN apk add --no-cache python3 py3-pip
+RUN apk add --no-cache python3 py3-pip postgresql-client
 RUN pip3 install --break-system-packages pyhocon psycopg2-binary
 
 # Expose the port (default is 4567 for Spark Java)
