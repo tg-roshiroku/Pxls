@@ -95,7 +95,8 @@ public class UndertowServer {
                 .addPermGatedPrefixPath("/notifications", "notification.list", webHandler::notificationsList)
                 .addPermGatedPrefixPath("/console", "management.console", new AllowedMethodsHandler(webHandler::webConsole, Methods.POST))
                 .addPermGatedPrefixPath("/api/v1/profile", "user.profile", new AllowedMethodsHandler(webHandler::profile, Methods.GET))
-                .addExactPath("/factions", new AllowedMethodsHandler(webHandler::getRequestingUserFactions, Methods.GET));
+                .addExactPath("/factions", new AllowedMethodsHandler(webHandler::getRequestingUserFactions, Methods.GET))
+                .addExactPath("/api/manage", new ManagementHandler());
         if (new File(App.getStorageDir().resolve("emoji").toString()).exists()) {
             pathHandler.addPrefixPath("/emoji", Handlers.resource(new FileResourceManager(new File(App.getStorageDir().resolve("emoji").toString()))).setCacheTime(604800));
         }
