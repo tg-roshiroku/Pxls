@@ -102,7 +102,7 @@ def create_steps(step):
 		conn = itemgetter('db')(kargs)
 
 		with conn.cursor() as cur:
-			cur.execute("DROP TABLE IF EXISTS pixels;")
+			cur.execute("DROP TABLE IF EXISTS pixels CASCADE;")
 			print('Database ouput:', cur.statusmessage)
 
 	@step(name="Reset user pixel count", key="resetcounts", uses_db=True)
