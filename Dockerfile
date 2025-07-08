@@ -35,6 +35,7 @@ COPY --from=builder /app/target/pxls-1.0-SNAPSHOT.jar ./pxls.jar
 COPY docker-pxls.conf ./pxls.conf
 COPY resources/palette-reference.conf ./palette.conf
 COPY resources/roles-reference.conf ./roles.conf
+COPY extras ./extras
 
 # Create board data directory
 RUN mkdir -p /app/board
