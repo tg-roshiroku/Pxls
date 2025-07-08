@@ -104,6 +104,66 @@ public class ManagementHandler implements HttpHandler {
                 exchange.getResponseSender().send(objectMapper.writeValueAsString(usernames));
                 break;
             }
+            case "roles": {
+                String username = (String) body.get("username");
+                if (username == null) {
+                    exchange.setStatusCode(StatusCodes.BAD_REQUEST);
+                    exchange.getResponseSender().send("Missing username");
+                    return;
+                }
+                var user = space.pxls.App.getUserManager().getByName(username);
+                if (user == null) {
+                    exchange.setStatusCode(StatusCodes.NOT_FOUND);
+                    exchange.getResponseSender().send("User not found");
+                    return;
+                }
+                Object rolesObj = body.get("roles");
+                if (rolesObj == null) {
+                    // Get current roles
+                    java.util.List<String> currentRoles = new java.util.ArrayList<>();
+                    for (var role : user.getRoles()) {
+                        currentRoles.add(role.getID());
+                    }
+                    exchange.setStatusCode(StatusCodes.OK);
+                    exchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "application/json");
+                    exchange.getResponseSender().send(objectMapper.writeValueAsString(currentRoles));
+                } else if (rolesObj instanceof java.util.List) {
+                    // Set roles
+                    java.util.List<?> rolesList = (java.util.List<?>) rolesObj;
+                    java.util.List<space.pxls.user.Role> foundRoles = new java.util.ArrayList<>();
+                    java.util.List<String> notFound = new java.util.ArrayList<>();
+                    for (Object roleObj : rolesList) {
+                        String roleStr = String.valueOf(roleObj);
+                        var role = space.pxls.user.Role.fromID(roleStr);
+                        if (role == null) {
+                            var rolesByName = space.pxls.user.Role.fromNames(roleStr);
+                            if (!rolesByName.isEmpty()) {
+                                role = rolesByName.get(0);
+                            }
+                        }
+                        if (role != null) {
+                            foundRoles.add(role);
+                        } else {
+                            notFound.add(roleStr);
+                        }
+                    }
+                    if (!foundRoles.isEmpty()) {
+                        user.setRoles(foundRoles, false);
+                    }
+                    exchange.setStatusCode(StatusCodes.OK);
+                    exchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "application/json");
+                    StringBuilder sb = new StringBuilder();
+                    sb.append("{\"result\":\"roles set\"");
+                    sb.append(",\"set\":").append(objectMapper.writeValueAsString(foundRoles.stream().map(space.pxls.user.Role::getID).toArray()));
+                    sb.append(",\"not_found\":").append(objectMapper.writeValueAsString(notFound));
+                    sb.append("}");
+                    exchange.getResponseSender().send(sb.toString());
+                } else {
+                    exchange.setStatusCode(StatusCodes.BAD_REQUEST);
+                    exchange.getResponseSender().send("'roles' must be a list");
+                }
+                break;
+            }
             // TODO: Add more commands (reloadConfig, shutdown, etc.)
             default:
                 exchange.setStatusCode(StatusCodes.BAD_REQUEST);
