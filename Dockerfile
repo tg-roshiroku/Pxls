@@ -38,7 +38,7 @@ COPY resources/roles-reference.conf ./roles.conf
 
 # Create board data directory
 RUN mkdir -p /app/board
-RUN apk add --no-cache python3 python3-pip
+RUN apk add --no-cache python3 py3-pip
 
 # Expose the port (default is 4567 for Spark Java)
 EXPOSE 4567
